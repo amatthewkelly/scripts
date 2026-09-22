@@ -40,5 +40,8 @@ intermittently dropped.
 ## Run manually
 
 ```sh
-daily-quote    # consumes a quote and appends to history
+~/Projects/scripts/daily-quote/daily-quote    # consumes a quote, appends to history
 ```
+
+It is not on your PATH — launchd runs it by absolute path, so it needs no
+symlink in `~/bin`.

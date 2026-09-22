@@ -6,7 +6,7 @@
 	<string>com.aaronkelly.daily-quote</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>{{HOME}}/.local/bin/daily-quote</string>
+		<string>{{REPO}}/daily-quote/daily-quote</string>
 	</array>
 	<key>StartCalendarInterval</key>
 	<dict>

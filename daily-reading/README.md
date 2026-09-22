@@ -33,5 +33,8 @@ it eligible again.
 ## Run manually
 
 ```sh
-daily-reading    # opens a document and appends to history
+~/Projects/scripts/daily-reading/daily-reading    # opens a document, appends to history
 ```
+
+It is not on your PATH — launchd runs it by absolute path, so it needs no
+symlink in `~/bin`.

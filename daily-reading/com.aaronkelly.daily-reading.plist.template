@@ -6,7 +6,7 @@
 	<string>com.aaronkelly.daily-reading</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>{{HOME}}/.local/bin/daily-reading</string>
+		<string>{{REPO}}/daily-reading/daily-reading</string>
 	</array>
 	<key>StartCalendarInterval</key>
 	<dict>
