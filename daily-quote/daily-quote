@@ -1,0 +1,58 @@
+#!/bin/zsh
+set -euo pipefail
+
+quotes_file="/Users/aaronkelly/Library/Mobile Documents/com~apple~CloudDocs/quotes.txt"
+state_dir="/Users/aaronkelly/Library/Application Support/Daily Quote"
+history_file="$state_dir/shown-history.txt"
+
+mkdir -p "$state_dir"
+touch "$history_file"
+
+candidate_file=$(mktemp -t daily-quote-candidates)
+available_file=$(mktemp -t daily-quote-available)
+trap 'rm -f "$candidate_file" "$available_file"' EXIT
+
+# Split quotes.txt into blank-line-delimited quotes, collapsing internal
+# whitespace so each becomes one line. quotes_file is only ever read.
+awk -v RS='' '
+  {
+    gsub(/[ \t\r\n]+/, " ")
+    gsub(/^ +| +$/, "")
+    if (length($0) > 0) print $0
+  }
+' "$quotes_file" > "$candidate_file"
+
+awk 'NR == FNR { seen[$0] = 1; next } !seen[$0] { print }' \
+  "$history_file" "$candidate_file" > "$available_file"
+
+if [[ ! -s "$available_file" ]]; then
+  : > "$history_file"
+  cp "$candidate_file" "$available_file"
+fi
+
+# pipefail off here: `head -n 1` closing early after sort still has more to
+# write raises SIGPIPE in sort, which pipefail would otherwise treat as failure.
+set +o pipefail
+selected_quote=$(awk 'BEGIN { srand() } { print rand() "\t" $0 }' "$available_file" \
+  | sort -n | head -n 1 | cut -f2-)
+set -o pipefail
+
+if [[ -z "$selected_quote" ]]; then
+  exit 0
+fi
+
+print -r -- "$selected_quote" >> "$history_file"
+
+# Notifications get visually truncated anyway; keep it well under that.
+display_quote="$selected_quote"
+max_len=300
+if (( ${#display_quote} > max_len )); then
+  display_quote="${display_quote[1,$max_len]}…"
+fi
+
+escaped=${display_quote//\\/\\\\}
+escaped=${escaped//\"/\\\"}
+
+# The `delay` keeps osascript alive past the async handoff to the notification
+# daemon; without it the notification is intermittently dropped on exit.
+osascript -e "display notification \"$escaped\" with title \"Quote of the Day\"" -e "delay 2"

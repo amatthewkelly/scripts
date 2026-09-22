@@ -1,0 +1,97 @@
+#!/bin/bash
+
+# Read-only Mac health and storage summary.
+# This script intentionally avoids sudo and never changes system state.
+
+set -u
+
+home_dir="${HOME:-/Users/aaronkelly}"
+data_mount="/System/Volumes/Data"
+
+line() {
+  printf '\n== %s ==\n' "$1"
+}
+
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+printf 'mac-status (read-only) — %s\n' "$(date '+%Y-%m-%d %H:%M:%S %Z')"
+
+line 'System'
+if command_exists sw_vers; then
+  sw_vers
+fi
+if command_exists sysctl; then
+  printf 'Model: '; sysctl -n hw.model 2>/dev/null || printf 'unknown\n'
+fi
+if command_exists uptime; then
+  uptime
+fi
+
+line 'OpenCore / OCLP'
+ocl_app="/Applications/OpenCore-Patcher.app"
+if [ -d "$ocl_app" ] && command_exists defaults; then
+  printf 'OCLP app: '
+  defaults read "$ocl_app/Contents/Info" CFBundleShortVersionString 2>/dev/null || printf 'installed\n'
+else
+  printf 'OCLP app: not found at %s\n' "$ocl_app"
+fi
+if command_exists nvram; then
+  printf 'OpenCore: '
+  nvram 4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102:opencore-version 2>/dev/null \
+    | sed 's/.*: //' || printf 'not reported\n'
+  printf 'OCLP version: '
+  nvram 4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102:OCLP-Version 2>/dev/null \
+    | sed 's/.*: //' || printf 'not reported\n'
+fi
+
+line 'Storage'
+df -h "$data_mount" / 2>/dev/null | sed -n '1,3p'
+printf '\nLargest home folders (may take a moment):\n'
+for folder in "$home_dir/Library" "$home_dir/Documents" "$home_dir/Movies" "$home_dir/Pictures" "$home_dir/Desktop" "$home_dir/Downloads"; do
+  if [ -d "$folder" ]; then
+    du -sh "$folder" 2>/dev/null
+  fi
+done | sort -h
+
+line 'Memory'
+if command_exists memory_pressure; then
+  memory_pressure 2>/dev/null | sed -n '1,12p'
+elif command_exists vm_stat; then
+  vm_stat | sed -n '1,8p'
+else
+  printf 'Memory tools unavailable\n'
+fi
+
+line 'Battery'
+if command_exists pmset; then
+  pmset -g batt 2>/dev/null
+fi
+if command_exists ioreg; then
+  ioreg -r -c AppleSmartBattery -l 2>/dev/null \
+    | awk -F ' = ' '/CycleCount|Condition|Health/ { print $1 " = " $2 }' \
+    | sed -n '1,8p'
+fi
+
+line 'Time Machine'
+if command_exists tmutil; then
+  destination="$(tmutil destinationinfo 2>/dev/null | awk -F ' : ' '/^(Name|Kind|URL)/ { print $1 ": " $2 }')"
+  if [ -n "$destination" ]; then
+    printf '%s\n' "$destination"
+  else
+    printf 'No destination configured\n'
+  fi
+  printf 'Local snapshots:\n'
+  tmutil listlocalsnapshots / 2>/dev/null | sed -n '1,12p'
+fi
+
+line 'Recently modified large files'
+printf '(over 500 MiB, modified in the last 90 days; common personal folders only)\n'
+for folder in "$home_dir/Desktop" "$home_dir/Documents" "$home_dir/Downloads" "$home_dir/Movies"; do
+  if [ -d "$folder" ]; then
+    find "$folder" -type f -size +500M -mtime -90 -print 2>/dev/null
+  fi
+done
+
+printf '\nDone. No changes were made.\n'

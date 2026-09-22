@@ -1,0 +1,36 @@
+#!/bin/zsh
+set -euo pipefail
+
+reading_dir="/Users/aaronkelly/reading"
+state_dir="/Users/aaronkelly/Library/Application Support/Daily Reading"
+history_file="$state_dir/opened-history.txt"
+
+mkdir -p "$state_dir"
+touch "$history_file"
+
+candidate_file=$(mktemp -t daily-reading-candidates)
+available_file=$(mktemp -t daily-reading-available)
+trap 'rm -f "$candidate_file" "$available_file"' EXIT
+
+find "$reading_dir" -type f \
+  \( -iname '*.pdf' -o -iname '*.epub' -o -iname '*.mobi' -o -iname '*.txt' \
+     -o -iname '*.rtf' -o -iname '*.doc' -o -iname '*.docx' \) \
+  -not -name '.DS_Store' -print > "$candidate_file"
+
+awk 'NR == FNR { seen[$0] = 1; next } !seen[$0] { print }' \
+  "$history_file" "$candidate_file" > "$available_file"
+
+if [[ ! -s "$available_file" ]]; then
+  : > "$history_file"
+  cp "$candidate_file" "$available_file"
+fi
+
+selected_file=$(awk 'BEGIN { srand() } { print rand() "\t" $0 }' "$available_file" \
+  | sort -n | head -n 1 | cut -f2-)
+
+if [[ -z "$selected_file" ]]; then
+  exit 0
+fi
+
+print -r -- "$selected_file" >> "$history_file"
+open "$selected_file"
