@@ -1,7 +1,7 @@
 #!/bin/zsh
 set -euo pipefail
 
-reading_dir="/Users/aaronkelly/reading"
+reading_dir="/Users/aaronkelly/Documents/reading"
 state_dir="/Users/aaronkelly/Library/Application Support/Daily Reading"
 history_file="$state_dir/opened-history.txt"
 
