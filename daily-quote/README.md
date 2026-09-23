@@ -14,6 +14,11 @@ history resets and the full pool becomes available again.
   only ever reads this file.
 - **`~/Library/Application Support/Daily Quote/`** — created automatically;
   holds `shown-history.txt`.
+- **`~/Applications/terminal-notifier.app`** — optional; installed by the
+  top-level `install.sh`. With it, clicking the notification opens the
+  full quote in a dialog (`daily-quote --show QUOTE`) that closes on dismiss
+  and leaves no file behind. Without it the script falls back to `osascript`,
+  whose notifications can't set a click action.
 
 If `quotes.txt` is missing the script exits non-zero and the notification is
 silently skipped, so check the logs rather than waiting for a notification that
@@ -21,11 +26,12 @@ never arrives.
 
 ## Notes
 
-Quotes longer than 300 characters are truncated with an ellipsis, since
-notifications are visually truncated anyway.
+The notification previews the quote, truncated to 300 characters with an
+ellipsis; click it to read the whole thing. The full quote is carried in the
+click command, so an older notification still opens its own quote.
 
-The `osascript` call ends with `delay 2`. Without it the script can exit before
-the notification daemon picks up the async handoff, and the notification is
+The `osascript` fallback ends with `delay 2`. Without it the script can exit
+before the notification daemon picks up the async handoff, and the notification is
 intermittently dropped.
 
 ## Files

@@ -42,5 +42,25 @@ for name in "${agents[@]}"; do
   printf 'loaded  %s (%s)\n' "$label" "$repo_dir/$name/$name"
 done
 
+# terminal-notifier lets a click on a notification run a command (plain
+# osascript notifications can't set a click action); daily-quote uses it to
+# open the full quote. Homebrew needs full Xcode to build it, so fetch the
+# prebuilt release and ad-hoc sign it.
+tn_app="$HOME/Applications/terminal-notifier.app"
+tn_url="https://github.com/julienXX/terminal-notifier/releases/download/2.0.0/terminal-notifier-2.0.0.zip"
+if [[ ! -x "$tn_app/Contents/MacOS/terminal-notifier" ]]; then
+  tn_tmp="$(mktemp -d)"
+  if curl -fsSL -o "$tn_tmp/tn.zip" "$tn_url" && unzip -q "$tn_tmp/tn.zip" -d "$tn_tmp"; then
+    mkdir -p "$HOME/Applications"
+    rm -rf "$tn_app"
+    cp -R "$tn_tmp/terminal-notifier.app" "$tn_app"
+    codesign --force --deep -s - "$tn_app"
+    printf 'installed terminal-notifier -> %s\n' "$tn_app"
+  else
+    printf 'warning: could not fetch terminal-notifier; notifications will not be clickable\n' >&2
+  fi
+  rm -rf "$tn_tmp"
+fi
+
 printf '\nDone. Add ~/bin to PATH if it is not already:\n'
 printf '  export PATH="$HOME/bin:$PATH"\n'

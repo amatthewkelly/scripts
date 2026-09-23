@@ -1,6 +1,20 @@
 #!/bin/zsh
 set -euo pipefail
 
+# `daily-quote --show QUOTE` is what clicking the notification runs: it shows
+# the full quote in a dialog that goes away when dismissed, leaving nothing
+# behind. The quote travels in the click command itself, so an old
+# notification still opens its own quote rather than whatever is current.
+if [[ ${1:-} == --show ]]; then
+  osascript \
+    -e 'on run argv' \
+    -e 'activate' \
+    -e 'display dialog (item 1 of argv) with title "Quote of the Day" buttons {"Close"} default button 1 with icon note giving up after 600' \
+    -e 'end run' \
+    -- "${2:-}" >/dev/null
+  exit 0
+fi
+
 quotes_file="/Users/aaronkelly/Library/Mobile Documents/com~apple~CloudDocs/quotes.txt"
 state_dir="/Users/aaronkelly/Library/Application Support/Daily Quote"
 history_file="$state_dir/shown-history.txt"
@@ -50,9 +64,22 @@ if (( ${#display_quote} > max_len )); then
   display_quote="${display_quote[1,$max_len]}…"
 fi
 
-escaped=${display_quote//\\/\\\\}
-escaped=${escaped//\"/\\\"}
+terminal_notifier="$HOME/Applications/terminal-notifier.app/Contents/MacOS/terminal-notifier"
 
-# The `delay` keeps osascript alive past the async handoff to the notification
-# daemon; without it the notification is intermittently dropped on exit.
-osascript -e "display notification \"$escaped\" with title \"Quote of the Day\"" -e "delay 2"
+if [[ -x "$terminal_notifier" ]]; then
+  # Clicking runs this script again with --show; (qq) single-quotes each word
+  # so the quote survives the trip through terminal-notifier's shell.
+  "$terminal_notifier" \
+    -title "Quote of the Day" \
+    -message "$display_quote" \
+    -group daily-quote \
+    -execute "${(qq)0:A} --show ${(qq)selected_quote}" >/dev/null
+else
+  # osascript can't set a click action, so this fallback is preview-only.
+  escaped=${display_quote//\\/\\\\}
+  escaped=${escaped//\"/\\\"}
+
+  # The `delay` keeps osascript alive past the async handoff to the notification
+  # daemon; without it the notification is intermittently dropped on exit.
+  osascript -e "display notification \"$escaped\" with title \"Quote of the Day\"" -e "delay 2"
+fi
